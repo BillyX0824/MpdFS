@@ -1,0 +1,486 @@
+package ncvfs;
+option optimize_for = SPEED;
+
+///////////////// UNIVERSAL /////////////////
+
+message HandshakeRequestPro {
+	optional fixed32 componentId = 1;
+	
+	enum ComponentType {
+		CLIENT = 1;
+		CHUNKSERVER = 2;
+		MASTER = 3;
+		MONITOR = 4;
+	}
+  
+  	optional ComponentType componentType = 2;
+}
+
+message HandshakeReplyPro {
+	optional fixed32 componentId = 1;
+	optional HandshakeRequestPro.ComponentType componentType = 2; 
+}
+
+
+message OffsetLengthPro {
+	optional fixed32 offset = 1;
+	optional fixed32 length = 2;
+}
+
+message DataMsgPro {
+	enum DataMsgType {
+		DEFAULT_DATA_MSG = 15;
+		UPLOAD = 1;
+		DOWNLOAD = 2;
+		RECOVERY = 3;
+		UPDATE = 4;
+		PARITY = 5;
+		DELTA = 6;
+	}
+}
+
+///////////////// FROM CLIENT /////////////////
+
+//
+// CLIENT -> Master
+//
+
+message ListDirectoryRequestPro {
+	optional fixed32 chunkserverId = 1;
+	optional string directoryPath = 2;
+}
+
+message UploadFileRequestPro {
+	optional fixed32 clientId = 1;
+	optional fixed64 fileSize = 2;
+	optional fixed32 numOfObjs = 3;
+	optional string path = 4;
+}
+
+message DeleteFileRequestPro {
+	optional fixed32 clientId = 1;
+	optional fixed32 fileId = 2;
+	optional string path = 3;
+}
+
+message RenameFileRequestPro {
+	optional fixed32 clientId = 1;
+	optional fixed32 fileId = 2;
+	optional string path = 3;
+	optional string newPath = 4;
+}
+
+message DownloadFileRequestPro {
+	optional fixed32 clientId = 1;
+	optional fixed32 fileId = 2;
+	optional string filePath = 3;
+}
+
+message SaveSegmentListRequestPro {
+	optional fixed32 clientId = 1;
+	optional fixed32 fileId = 2;
+	repeated fixed64 segmentList = 3;
+}
+
+message SetFileSizeRequestPro {
+	optional fixed32 clientId = 1;
+	optional fixed32 fileId = 2;
+	optional fixed64 fileSize = 3;
+}
+
+message GetSegmentIdListRequestPro {
+	optional fixed32 clientId = 1;
+	optional fixed32 numOfObjs = 2;
+}
+
+//message SwitchPrimaryChunkserverRequestPro {
+//	optional fixed64 segmentId = 1;
+//}
+
+//
+// CLIENT -> CHUNKSERVER
+//
+
+message PutSegmentInitRequestPro {
+	optional fixed64 segmentId = 1;
+	optional fixed32 segmentSize = 2;
+	optional fixed32 chunkCount = 3;
+	
+	enum CodingScheme {
+		RAID0_CODING = 1;
+		RAID1_CODING = 2;
+		RAID5_CODING = 3;
+		RS_CODING = 4;
+		EMBR_CODING = 5;
+		CAUCHY = 6;
+		EVENODD_CODING = 7;
+		RDP_CODING = 8;
+		DEFAULT_CODING = 15;
+	}
+	
+	optional CodingScheme codingScheme = 4;
+	optional string codingSetting = 5;
+	
+	optional DataMsgPro.DataMsgType dataMsgType = 7;
+	optional string updateKey = 8;
+
+    optional fixed32 bufferSize = 9;
+}
+
+message SegmentDataPro {
+	optional fixed64 segmentId = 1;
+	optional fixed64 offset = 2;
+	optional fixed32 length = 3;
+	
+	optional DataMsgPro.DataMsgType dataMsgType = 4;
+	optional string updateKey = 5;
+}
+
+message GetSegmentRequestPro {
+	optional fixed64 segmentId = 1;
+}
+
+// message GetSegmentReadyPro {
+//	 optional fixed64 segmentId = 1;
+// }
+
+// Upload: CLIENT -> CHUNKSERVER
+// Download: CHUNKSERVER -> CLIENT
+
+message SegmentTransferEndRequestPro {
+	optional fixed64 segmentId = 1;
+	optional fixed32 ifrom = 7;
+	optional DataMsgPro.DataMsgType dataMsgType = 4;
+	optional string updateKey = 5;
+	repeated OffsetLengthPro offsetLength = 6;
+}
+
+message PutSmallSegmentRequestPro {
+	optional fixed64 segmentId = 1;
+	optional fixed32 segmentSize = 2;
+	optional PutSegmentInitRequestPro.CodingScheme codingScheme = 3;
+	optional string codingSetting = 4;
+	optional DataMsgPro.DataMsgType dataMsgType = 5;
+	optional string updateKey = 6;
+    optional fixed32 bufferSize = 7;
+	repeated OffsetLengthPro offsetLength = 8;
+	optional fixed32 ifrom = 9;
+}
+
+//
+// CLIENT -> MONITOR
+//
+
+message GetChunkserverListRequestPro {
+}
+
+///////////////// FROM Master /////////////////
+
+//
+// Master -> CLIENT
+//
+
+message ListDirectoryReplyPro {
+	repeated FileInfoPro fileInfoPro = 1;
+} 
+
+message FileInfoPro {
+	optional fixed32 fileId = 1;
+	optional fixed64 fileSize = 2;
+	optional string fileName = 3;
+}
+
+message BlockLocationPro {
+   	optional fixed32 chunkserverId = 1;
+   	optional fixed32 blockId = 2;
+}
+
+message UploadFileReplyPro {
+	optional fixed32 fileId = 1;
+	repeated fixed64 segmentList = 2;
+	repeated fixed32 primaryList = 3;
+}
+
+message DeleteFileReplyPro {
+	optional fixed32 fileId = 1;
+	optional string path = 2;
+}
+
+message RenameFileReplyPro {
+	optional fixed32 fileId = 1;
+}
+
+message SaveSegmentListReplyPro {
+	optional fixed32 fileId = 1;
+}
+
+message DownloadFileReplyPro {
+//	optional fixed32 clientId = 1;
+	optional fixed32 fileId = 2;
+	optional string filePath = 3;
+	optional fixed64 fileSize = 4;
+	enum FileType {
+		NEWFILE = 1;
+		NORMAL = 2;
+		FOLDER = 3;
+	}
+	optional FileType fileType = 5;
+	repeated fixed64 segmentList = 7;
+	repeated fixed32 primaryList = 8;
+}
+
+message GetSegmentIdListReplyPro {
+	repeated fixed64 segmentIdList = 1;
+	repeated fixed32 primaryList = 2;
+}
+
+message SwitchPrimaryChunkserverReplyPro {
+	optional fixed32 newPrimaryChunkserverId = 1;	
+}
+
+
+//
+// Master -> CHUNKSERVER
+//
+
+message UploadSegmentAckReplyPro {
+	optional fixed64 segmentId = 1;
+}
+
+message GetSegmentInfoReplyPro {
+	optional fixed64 segmentId = 1;
+	repeated fixed32 nodeList = 2;
+	optional PutSegmentInitRequestPro.CodingScheme codingScheme = 3;	
+	optional string codingSetting = 4;
+	optional fixed32 segmentSize = 5;
+}
+
+//
+// Master -> MONITOR
+//
+
+message GetPrimaryListRequestPro{
+	optional fixed32 numOfObjs = 1;
+	repeated fixed32 primaryList = 2;
+}
+
+message SegmentLocationPro{
+	optional fixed64 segmentId = 1;
+	optional fixed32 primaryId = 2;
+	repeated fixed32 chunkserverList = 3;
+}
+
+message RecoveryTriggerReplyPro{
+	repeated SegmentLocationPro segmentLocations = 1;
+}
+
+
+///////////////// FROM CHUNKSERVER /////////////////
+
+//
+// CHUNKSERVER -> Master
+//
+
+message UploadSegmentAckPro {
+	optional fixed64 segmentId = 1;
+	optional PutSegmentInitRequestPro.CodingScheme codingScheme = 2;	
+	optional string codingSetting = 3;
+	repeated fixed32 nodeList = 4;
+	optional fixed32 segmentSize = 6;
+}
+
+message GetSegmentInfoRequestPro {
+	optional fixed64 segmentId = 1;	
+	optional fixed32 chunkserverId = 2;
+	optional bool needReply = 3;
+	optional bool isRecovery = 4;
+}
+
+
+//
+// CHUNKSERVER -> CLIENT
+//
+
+message PutSegmentInitReplyPro {
+	optional fixed64 segmentId = 1;
+	optional DataMsgPro.DataMsgType dataMsgType = 2;
+}
+
+// Upload: CHUNKSERVER -> CLIENT
+// Download: CLIENT -> CHUNKSERVER
+
+message SegmentTransferEndReplyPro {
+	optional fixed64 segmentId = 1;
+	optional bool isSmallSegment = 2;
+}
+
+// message GetSegmentReplyPro {
+// 	optional fixed64 segmentId = 1;
+// 	optional fixed32 segmentSize = 2;
+// 	optional fixed32 chunkCount = 3;
+// }
+
+//
+// CHUNKSERVER -> CHUNKSERVER
+//
+
+
+message PutBlockInitRequestPro {
+	optional fixed64 segmentId = 1;
+	optional fixed32 blockId = 2;
+	optional fixed32 blockSize = 3;
+	optional fixed32 chunkCount = 4;
+	optional fixed32 blockIdOfDelta = 5;
+	optional fixed32 deltaId = 6;
+	optional DataMsgPro.DataMsgType dataMsgType = 7;
+	optional string updateKey = 8;
+}
+
+message BlockDataPro {
+	optional fixed64 segmentId = 1;
+	optional fixed32 blockId = 2;
+	optional fixed64 offset = 3;
+	optional fixed32 length = 4;
+	optional DataMsgPro.DataMsgType dataMsgType = 5;
+	optional string updateKey = 6;
+}
+
+message BlockTransferEndRequestPro {
+	optional fixed64 segmentId = 1;
+	optional fixed32 blockId = 2;
+	optional DataMsgPro.DataMsgType dataMsgType = 3;
+	optional string updateKey = 4;
+	repeated OffsetLengthPro offsetLength = 5;
+	repeated BlockLocationPro blockLocation = 6;
+	optional PutSegmentInitRequestPro.CodingScheme codingScheme = 7;
+	optional string codingSetting = 8;
+	optional fixed64 segmentSize = 9;
+}
+
+message PutBlockInitReplyPro {
+	optional fixed64 segmentId = 1;
+	optional fixed32 blockId = 2;
+}
+
+message BlockTransferEndReplyPro {
+	optional fixed64 segmentId = 1;
+	optional fixed32 blockId = 2;
+}
+
+message GetBlockInitRequestPro {
+	optional fixed64 segmentId = 1;
+	optional fixed32 blockId = 2;
+	repeated OffsetLengthPro offsetLength = 3;
+	optional DataMsgPro.DataMsgType dataMsgType = 4;
+	optional bool isParity = 5;
+}
+
+message GetDeltaInitRequestPro {
+	optional fixed64 segmentId = 1;
+	optional fixed32 blockId = 2;
+	optional fixed32 beginDeltaId = 3;
+	optional fixed32 endDeltaId = 4;
+	optional fixed32 getNum = 5;
+	optional DataMsgPro.DataMsgType dataMsgType = 6;
+}
+
+message GetBlockInitReplyPro {
+	optional fixed64 segmentId = 1;
+	optional fixed32 blockId = 2;
+	optional fixed32 blockSize = 3;
+	optional fixed32 chunkCount = 4;
+}
+
+//
+// CHUNKSERVER -> MONITOR 
+//
+message ChunkserverStartupPro {
+	optional fixed32 chunkserverId = 1;
+	optional fixed32 chunkserverCapacity = 2;
+	optional fixed32 chunkserverLoading = 3;
+	optional fixed32 chunkserverIp = 4;
+	optional fixed32 chunkserverPort = 5;
+}
+
+message ChunkserverShutdownPro {
+	optional fixed32 chunkserverId = 1;
+}
+
+message ChunkserverStatUpdateReplyPro {
+	optional fixed32 chunkserverId = 1;
+	optional fixed32 chunkserverCapacity = 2;
+	optional fixed32 chunkserverLoading = 3;
+}
+
+message GetSecondaryListRequestPro{
+	optional fixed32 numOfSegs = 1;
+	optional fixed32 primaryId = 2;
+	optional fixed64 blockSize = 3;
+}
+
+///////////////// FROM MONITOR /////////////////
+//
+// MONITOR -> CHUNKSERVER
+//
+
+message ChunkserverStatUpdateRequestPro {
+
+}
+
+message GetSecondaryListReplyPro{
+	repeated BlockLocationPro secondaryList = 1;
+}
+
+message NewChunkserverRegisterPro {
+	optional fixed32 chunkserverId = 1;
+	optional fixed32 chunkserverIp = 2;
+	optional fixed32 chunkserverPort = 3;
+}
+
+message OnlineChunkserverPro {
+	optional fixed32 chunkserverId = 1;
+	optional fixed32 chunkserverIp = 2;
+	optional fixed32 chunkserverPort = 3;
+}
+
+message OnlineChunkserverListPro {
+	repeated OnlineChunkserverPro onlineChunkserverList = 1;
+}
+
+message GetChunkserverStatusRequestPro {
+	repeated fixed32 chunkserverIds = 1;
+}
+
+message GetChunkserverStatusReplyPro {
+	repeated bool chunkserverStatus = 1;
+}
+
+
+message RepairSegmentInfoPro {
+	optional fixed64 segmentId = 1;
+	repeated fixed32 deadBlockIds = 2;
+	repeated fixed32 newChunkserverIds = 3;	
+}
+
+//
+// MONITOR -> Master
+//
+
+message GetPrimaryListReplyPro{
+	repeated fixed32 primaryList = 1;
+}
+
+message RecoveryTriggerRequestPro{
+	repeated fixed32 chunkserverList = 1;
+	repeated fixed32 dstChunkserverList = 2;
+	optional bool dstspecified = 3;
+}
+
+
+//
+// MONITOR -> CLIENT
+//
+
+message GetChunkserverListReplyPro {
+	repeated OnlineChunkserverPro onlineChunkserverList = 1;
+}
